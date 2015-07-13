@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.ComponentModel.Design;
+using EnvDTE80;
 using Microsoft.Win32;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -78,23 +79,77 @@ namespace kjonigsennet.vsmode
         /// </summary>
         private void MenuItemCallback(object sender, EventArgs e)
         {
-            // Show a Message Box to prove we were here
-            IVsUIShell uiShell = (IVsUIShell)GetService(typeof(SVsUIShell));
+            try
+            {
+                OpenInEmacs();
+            }
+            catch (Exception ex)
+            {
+                string msg = ex.ToString();
+                DialogMessage(msg);
+            }
+        }
+
+        private void DialogMessage(string msg)
+        {
+            IVsUIShell uiShell = (IVsUIShell) GetService(typeof (SVsUIShell));
             Guid clsid = Guid.Empty;
             int result;
             Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(uiShell.ShowMessageBox(
-                       0,
-                       ref clsid,
-                       "vsmode",
-                       string.Format(CultureInfo.CurrentCulture, "Inside {0}.MenuItemCallback()", this.ToString()),
-                       string.Empty,
-                       0,
-                       OLEMSGBUTTON.OLEMSGBUTTON_OK,
-                       OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST,
-                       OLEMSGICON.OLEMSGICON_INFO,
-                       0,        // false
-                       out result));
+                0,
+                ref clsid,
+                "vsmode",
+                msg,
+                string.Empty,
+                0,
+                OLEMSGBUTTON.OLEMSGBUTTON_OK,
+                OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST,
+                OLEMSGICON.OLEMSGICON_INFO,
+                0, // false
+                out result));
         }
+
+        private void OpenInEmacs()
+        {
+            var dte = GetService(typeof(Microsoft.VisualStudio.Shell.Interop.SDTE)) as DTE2;
+            if (dte == null)
+            {
+                throw new Exception("Main application-object not available.");
+            }
+
+            var currentDoc = dte.ActiveDocument;
+            if (currentDoc == null)
+            {
+                throw new InvalidOperationException("No document currently open.");
+            }
+
+            // TODOs:
+            // 1. get current file
+            var fullName = currentDoc.FullName;
+
+            // 2. get source-control status
+            var sourceControl = dte.SourceControl;
+            var isCheckedOut = sourceControl.IsItemCheckedOut(fullName);
+
+            // 2.5. check out
+            if (!isCheckedOut)
+            {
+                sourceControl.CheckOutItem(fullName);
+            }
+
+            // 3. send off to emacsclient. assume in path.
+            var psi = new ProcessStartInfo
+            {
+                // Ref a "proper" windows emacs-setup as found here:
+                // https://www.gnu.org/software/emacs/manual/html_node/efaq-w32/Associate-files-with-Emacs.html#Associate-files-with-Emacs
+                FileName = "emacsclientw",
+                Arguments = fullName,
+                //CreateNoWindow = true
+            };
+            var p = System.Diagnostics.Process.Start(psi);
+            // we're not waiting for p's exit-code because the client may hang around forever.
+        }
+
 
     }
 }
