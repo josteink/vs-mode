@@ -14,6 +14,7 @@ This means "the usual" dependencies like Microsoft Extensibility Framework and f
 Currently the package provides the following features:
 
 * Open in Emacs
+* Automatically check out files from source-control before opening. This is particularly useful for TFS source-control which Emacs does not support.
 
 ## Building and using
 
