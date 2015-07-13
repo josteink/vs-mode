@@ -7,7 +7,7 @@ vs-mode is a Visual Studio package meant to provide limited integrations against
 
 vs-mode is packaged as a regular VSIX package targetting Visual Studio 2013.
 
-This means "the usual" dependencies are like Microsoft Extensibility Framework and friends are required.
+This means "the usual" dependencies like Microsoft Extensibility Framework and friends are required.
 
 ## Features
 
