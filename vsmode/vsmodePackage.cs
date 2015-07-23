@@ -156,6 +156,8 @@ namespace kjonigsennet.vsmode
 
             // we're not waiting for p to exit in this thread because the client may hang around forever.
             Process.Start(psi);
+
+            FocusEmacsWindow();
         }
 
         /// <summary>
@@ -199,5 +201,40 @@ namespace kjonigsennet.vsmode
             }
             catch { }
         }
+
+        /// <summary>
+        /// By default emacsclientw will only make emacs open the file, it will not cause Emacs to regain focus.
+        /// Hack this into happening.
+        /// </summary>
+        private void FocusEmacsWindow()
+        {
+            var emacsen = Process.GetProcessesByName("emacs");
+
+            if (emacsen.Length == 0)
+            {
+                // sleep a little to give emacs time to show up.
+                System.Threading.Thread.Sleep(1000);
+            }
+
+            emacsen = Process.GetProcessesByName("emacs");
+            if (emacsen.Length == 0)
+            {
+                // nothing we can do.
+                return;
+            }
+
+            // if there is more than one... to bad!
+            var emacs = emacsen[0];
+            if (emacs.MainWindowHandle == IntPtr.Zero)
+            {
+                // not sure how this would happen, but passing 0 along wont work.
+                // better safe than sorry.
+                return;
+            }
+            SetForegroundWindow(emacs.MainWindowHandle);
+        }
+
+        [DllImport("USER32.DLL")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
     }
 }
