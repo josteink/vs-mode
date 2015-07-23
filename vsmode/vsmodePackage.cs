@@ -9,6 +9,9 @@ using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
+using System.Security.AccessControl;
+using System.IO;
+using System.Security.Principal;
 
 namespace kjonigsennet.vsmode
 {
@@ -123,33 +126,78 @@ namespace kjonigsennet.vsmode
                 throw new InvalidOperationException("No document currently open.");
             }
 
-            // TODOs:
             // 1. get current file
             var fullName = currentDoc.FullName;
 
             // 2. get source-control status
             var sourceControl = dte.SourceControl;
-            var isCheckedOut = sourceControl.IsItemCheckedOut(fullName);
+            //var sc2 = sourceControl as SourceControl2;
+            var shouldCheckOut =
+                sourceControl.IsItemUnderSCC(fullName)
+                && !sourceControl.IsItemCheckedOut(fullName);
 
             // 2.5. check out
-            if (!isCheckedOut)
+            if (shouldCheckOut)
             {
                 sourceControl.CheckOutItem(fullName);
             }
 
-            // 3. send off to emacsclient. assume in path.
+            // 2.6 reset file-permissions incase we're UACed.
+            TryMakeWritable(fullName);
+
+            // 3. send off to emacsclientw. assume in path.
             var psi = new ProcessStartInfo
             {
                 // Ref a "proper" windows emacs-setup as found here:
                 // https://www.gnu.org/software/emacs/manual/html_node/efaq-w32/Associate-files-with-Emacs.html#Associate-files-with-Emacs
                 FileName = "emacsclientw",
                 Arguments = fullName,
-                //CreateNoWindow = true
             };
-            var p = System.Diagnostics.Process.Start(psi);
-            // we're not waiting for p's exit-code because the client may hang around forever.
+
+            // we're not waiting for p to exit in this thread because the client may hang around forever.
+            Process.Start(psi);
         }
 
+        /// <summary>
+        /// General method trying to prevent the presence of UAC and UAC-based file-ownership from messing up for Emacs
+        /// when it saves data back to disk from an unpriviliged proccess.
+        /// </summary>
+        /// <param name="fullName"></param>
+        private void TryMakeWritable(string fullName)
+        {
+            FileInfo fi = new FileInfo(fullName);
+            var everyoneUser = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
 
+            // ensure emacs has rights to write to the actual file.
+            try
+            {
+                FileSecurity fSecurity = fi.GetAccessControl();
+                var rule = new FileSystemAccessRule(everyoneUser, FileSystemRights.FullControl, AccessControlType.Allow);
+                fSecurity.SetAccessRule(rule);
+
+                fi.SetAccessControl(fSecurity);
+            }
+            catch { }
+
+            // we (not admin) need to own the file for Emacs to be able to handle backups etc without ACL failures.
+            try
+            {
+                FileSecurity fSecurity = fi.GetAccessControl();
+                fSecurity.SetOwner(new NTAccount(Environment.UserDomainName, Environment.UserName));
+                fi.SetAccessControl(fSecurity);
+            }
+            catch { }
+
+            // if we want to avoid having write-failures because of ACLs, we may need to ensure directory is writable too.
+            DirectoryInfo di = fi.Directory;
+            try
+            {
+                DirectorySecurity dSecurity = di.GetAccessControl();
+                var rule = new FileSystemAccessRule(everyoneUser, FileSystemRights.FullControl, InheritanceFlags.ObjectInherit | InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow);
+                dSecurity.AddAccessRule(rule);
+                di.SetAccessControl(dSecurity);
+            }
+            catch { }
+        }
     }
 }
