@@ -15,6 +15,8 @@ Currently the package provides the following features:
 
 * Open in Emacs
 * Automatically check out files from source-control before opening. This is particularly useful for TFS source-control which Emacs does not support.
+* Automatically fix broken file-permissions caused by UAC with Visual Studio opened as admin.
+* Automatically focus Emacs-window after opening file.
 
 ## Building and using
 
