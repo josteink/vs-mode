@@ -128,6 +128,12 @@ namespace kjonigsennet.vsmode
 
             // 1. get current file
             var fullName = currentDoc.FullName;
+            var position = string.Empty;
+            var selection = currentDoc.Selection as EnvDTE.TextSelection;
+            if (selection != null)
+            {
+                position = string.Format("+{0}:{1} ", selection.CurrentLine, selection.CurrentColumn);
+            }
 
             // 2. get source-control status
             var sourceControl = dte.SourceControl;
@@ -151,7 +157,7 @@ namespace kjonigsennet.vsmode
                 // Ref a "proper" windows emacs-setup as found here:
                 // https://www.gnu.org/software/emacs/manual/html_node/efaq-w32/Associate-files-with-Emacs.html#Associate-files-with-Emacs
                 FileName = "emacsclientw",
-                Arguments = fullName,
+                Arguments = position + fullName,
             };
 
             // we're not waiting for p to exit in this thread because the client may hang around forever.
