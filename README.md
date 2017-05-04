@@ -28,7 +28,7 @@ This means "the usual" dependencies like Microsoft Extensibility Framework and f
 
 Bulding this package involves a few steps:
 
-* Open and build the solution.
+* Open and build the solution using Visual Studio 2015.
 * Install to Visual studio by opening the `vsmode.vsix`-file found in the target folder.
 
 
