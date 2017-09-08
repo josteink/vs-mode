@@ -157,7 +157,8 @@ namespace kjonigsennet.vsmode
                 // Ref a "proper" windows emacs-setup as found here:
                 // https://www.gnu.org/software/emacs/manual/html_node/efaq-w32/Associate-files-with-Emacs.html#Associate-files-with-Emacs
                 FileName = "emacsclientw",
-                Arguments = position + fullName,
+                // Filename in arguments should be quoted if we want to handled spaces.
+                Arguments = position + @"""" + fullName + @"""",
             };
 
             // we're not waiting for p to exit in this thread because the client may hang around forever.
