@@ -120,20 +120,39 @@ namespace kjonigsennet.vsmode
                 throw new Exception("Main application-object not available.");
             }
 
+            string fullName = null;
+            string position = null;
+
             var currentDoc = dte.ActiveDocument;
-            if (currentDoc == null)
+            if (currentDoc != null)
             {
-                throw new InvalidOperationException("No document currently open.");
+                fullName = currentDoc.FullName;
+                var selection = currentDoc.Selection as EnvDTE.TextSelection;
+                if (selection != null)
+                {
+                    position = string.Format("+{0}:{1} ", selection.CurrentLine, selection.CurrentColumn);
+                }
+            }
+            else
+            {
+                var selectedItems = (EnvDTE.UIHierarchyItem[])dte.ToolWindows.SolutionExplorer.SelectedItems;
+                if (selectedItems != null && selectedItems.Length != 0)
+                {
+                    var selectedItem = selectedItems[0];
+                    var prjItem = selectedItem.Object as EnvDTE.ProjectItem;
+                    if (prjItem != null)
+                    {
+                        fullName = prjItem.Properties.Item("FullPath").Value.ToString();
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(fullName))
+            {
+                throw new InvalidOperationException("No document currently open or selected.");
             }
 
             // 1. get current file
-            var fullName = currentDoc.FullName;
-            var position = string.Empty;
-            var selection = currentDoc.Selection as EnvDTE.TextSelection;
-            if (selection != null)
-            {
-                position = string.Format("+{0}:{1} ", selection.CurrentLine, selection.CurrentColumn);
-            }
 
             // 2. get source-control status
             var sourceControl = dte.SourceControl;
