@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.Shell;
 using System.Security.AccessControl;
 using System.IO;
 using System.Security.Principal;
+using EnvDTE;
 
 namespace kjonigsennet.vsmode
 {
@@ -127,7 +128,7 @@ namespace kjonigsennet.vsmode
             if (currentDoc != null)
             {
                 fullName = currentDoc.FullName;
-                var selection = currentDoc.Selection as EnvDTE.TextSelection;
+                var selection = currentDoc.Selection as TextSelection;
                 if (selection != null)
                 {
                     position = string.Format("+{0}:{1} ", selection.CurrentLine, selection.CurrentColumn);
@@ -135,16 +136,8 @@ namespace kjonigsennet.vsmode
             }
             else
             {
-                var selectedItems = (EnvDTE.UIHierarchyItem[])dte.ToolWindows.SolutionExplorer.SelectedItems;
-                if (selectedItems != null && selectedItems.Length != 0)
-                {
-                    var selectedItem = selectedItems[0];
-                    var prjItem = selectedItem.Object as EnvDTE.ProjectItem;
-                    if (prjItem != null)
-                    {
-                        fullName = prjItem.Properties.Item("FullPath").Value.ToString();
-                    }
-                }
+                var selectedItems = (UIHierarchyItem[])dte.ToolWindows.SolutionExplorer.SelectedItems;
+                fullName = GetFullPathFromSelectedItems(selectedItems);
             }
 
             if (string.IsNullOrWhiteSpace(fullName))
@@ -181,9 +174,40 @@ namespace kjonigsennet.vsmode
             };
 
             // we're not waiting for p to exit in this thread because the client may hang around forever.
-            Process.Start(psi);
+            System.Diagnostics.Process.Start(psi);
 
             FocusEmacsWindow();
+        }
+
+        private string GetFullPathFromSelectedItems(UIHierarchyItem[] selectedItems)
+        {
+            if (selectedItems == null || selectedItems.Length == 0)
+            {
+                return null;
+            }
+
+            foreach (var selectedItem in selectedItems)
+            {
+                var solution = selectedItem.Object as Solution;
+                if (solution != null)
+                {
+                    return solution.FullName;
+                }
+
+                var project = selectedItem.Object as Project;
+                if (project != null)
+                {
+                    return project.FullName;
+                }
+
+                var projectItem = selectedItem.Object as ProjectItem;
+                if (projectItem != null)
+                {
+                    return projectItem.Properties.Item("FullPath").Value.ToString();
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -234,7 +258,7 @@ namespace kjonigsennet.vsmode
         /// </summary>
         private void FocusEmacsWindow()
         {
-            var emacsen = Process.GetProcessesByName("emacs");
+            var emacsen = System.Diagnostics.Process.GetProcessesByName("emacs");
 
             if (emacsen.Length == 0)
             {
@@ -242,7 +266,7 @@ namespace kjonigsennet.vsmode
                 System.Threading.Thread.Sleep(1000);
             }
 
-            emacsen = Process.GetProcessesByName("emacs");
+            emacsen = System.Diagnostics.Process.GetProcessesByName("emacs");
             if (emacsen.Length == 0)
             {
                 // nothing we can do.
