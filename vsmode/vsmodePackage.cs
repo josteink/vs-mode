@@ -218,7 +218,9 @@ namespace kjonigsennet.vsmode
         private void TryMakeWritable(string fullName)
         {
             FileInfo fi = new FileInfo(fullName);
-            var everyoneUser = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+
+            // .Translate() needed to resolve {S-1-1-0} to "Everyone", which is required for later comparison!
+            IdentityReference everyoneUser = new SecurityIdentifier(WellKnownSidType.WorldSid, null).Translate(typeof(NTAccount));
 
             // ensure emacs has rights to write to the actual file.
             try
@@ -245,8 +247,20 @@ namespace kjonigsennet.vsmode
             try
             {
                 DirectorySecurity dSecurity = di.GetAccessControl();
-                var rule = new FileSystemAccessRule(everyoneUser, FileSystemRights.FullControl, InheritanceFlags.ObjectInherit | InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow);
-                dSecurity.AddAccessRule(rule);
+                var rules = dSecurity.GetAccessRules(true, true, typeof(System.Security.Principal.NTAccount));
+                foreach (FileSystemAccessRule rule in rules)
+                {
+                    if (rule.FileSystemRights == FileSystemRights.FullControl && rule.IdentityReference == everyoneUser)
+                    {
+                        // equivalent rule already present.
+                        // do NOT set (setting folder permissions needs to propagate === very, very slow)
+                        return;
+                    }
+                }
+
+                // seems we need to set a new rule. let's do it!
+                var everyoneRule = new FileSystemAccessRule(everyoneUser, FileSystemRights.FullControl, InheritanceFlags.None, PropagationFlags.NoPropagateInherit, AccessControlType.Allow);
+                dSecurity.AddAccessRule(everyoneRule);
                 di.SetAccessControl(dSecurity);
             }
             catch { }
